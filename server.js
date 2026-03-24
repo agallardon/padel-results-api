@@ -8,6 +8,8 @@ const TOKEN = process.env.PADEL_TOKEN;
 
 app.get('/matches', async (req, res) => {
   try {
+    const page = req.query.page || 1;
+
     const seasons = await fetch('https://padelapi.org/api/seasons', {
       headers: { Authorization: `Bearer ${TOKEN}` }
     }).then(r => r.json());
@@ -26,11 +28,16 @@ app.get('/matches', async (req, res) => {
     );
     if (!miami) return res.json({ error: 'Miami tournament not found' });
 
-    const matches = await fetch(`https://padelapi.org/api/tournaments/${miami.id}/matches?per_page=50`, {
+    const matchRes = await fetch(`https://padelapi.org/api/tournaments/${miami.id}/matches?per_page=50&page=${page}`, {
       headers: { Authorization: `Bearer ${TOKEN}` }
     }).then(r => r.json());
 
-    res.json({ tournament_name: miami.name, tournament_id: miami.id, matches: matches.data || [] });
+    res.json({
+      tournament_name: miami.name,
+      tournament_id: miami.id,
+      matches: matchRes.data || [],
+      last_page: matchRes.meta?.last_page || 1
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
