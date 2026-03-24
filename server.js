@@ -38,14 +38,3 @@ app.get('/matches', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Running on port ${PORT}`));
-```
-
-Commit it the same way.
-
----
-
-**Third file — one more time "Add file" → "Create new file"**
-
-Name it `Procfile` (no extension) and paste:
-```
-web: node server.js
