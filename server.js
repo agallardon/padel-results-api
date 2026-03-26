@@ -24,7 +24,7 @@ app.get('/matches', async (req, res) => {
       t.location?.toLowerCase().includes('miami') ||
       t.city?.toLowerCase().includes('miami')
     );
-    if (!miami) return res.json({ error: 'Miami not found', available: tours.data?.map(t => t.name) });
+    if (!miami) return res.json({ error: 'Miami not found' });
 
     const matchRes = await fetch(`https://padelapi.org/api/tournaments/${miami.id}/matches?per_page=50`, {
       headers: { Authorization: `Bearer ${TOKEN}` }
@@ -37,7 +37,6 @@ app.get('/matches', async (req, res) => {
       last_page: 1
     });
   } catch (e) {
-    console.error('Error:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
@@ -55,23 +54,21 @@ app.get('/player/:id', async (req, res) => {
 
 app.get('/photo/:id', async (req, res) => {
   try {
-    // Get player data from padelapi which should include a photo URL
     const player = await fetch(`https://padelapi.org/api/players/${req.params.id}`, {
       headers: { Authorization: `Bearer ${TOKEN}` }
     }).then(r => r.json());
 
-    console.log('Player data for', req.params.id, ':', JSON.stringify(player).substring(0, 400));
+    console.log('Player fields:', JSON.stringify(player).substring(0, 500));
 
-    // Try common photo field names
-    const photoUrl = player.photo || player.image || player.avatar || 
-                     player.picture || player.data?.photo || player.data?.image ||
-                     player.data?.avatar || player.data?.picture;
+    const data = player.data || player;
+    const photoUrl = data.photo || data.image || data.avatar || data.picture || data.photo_url;
 
-    if (!photoUrl) return res.status(404).json({ error: 'No photo found', fields: Object.keys(player.data || player) });
+    if (!photoUrl) {
+      return res.status(404).json({ error: 'No photo field found', fields: Object.keys(data) });
+    }
 
-    // Proxy the image
     const imgRes = await fetch(photoUrl);
-    if (!imgRes.ok) return res.status(404).send('Photo not found');
+    if (!imgRes.ok) return res.status(404).send('Photo fetch failed');
     const buffer = await imgRes.buffer();
     res.set('Content-Type', imgRes.headers.get('content-type') || 'image/jpeg');
     res.set('Cache-Control', 'public, max-age=86400');
@@ -85,6 +82,6 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Running on port ${PORT}`));
 ```
 
-Once deployed, open this in your browser and paste what you see:
+Make sure when you paste into GitHub that you can see `app.listen` at the very bottom — that's how you know the file is complete. Commit it and Railway will redeploy. Then open:
 ```
 https://padel-results-api-production.up.railway.app/player/79
