@@ -12,9 +12,7 @@ async function getPlayerPhoto(id) {
       headers: { Authorization: `Bearer ${TOKEN}` }
     }).then(r => r.json());
     return p.photo_url || null;
-  } catch (e) {
-    return null;
-  }
+  } catch (e) { return null; }
 }
 
 app.get('/matches', async (req, res) => {
@@ -41,10 +39,33 @@ app.get('/matches', async (req, res) => {
       headers: { Authorization: `Bearer ${TOKEN}` }
     }).then(r => r.json());
 
+    // Enrich finished matches with player photos
+    const matches = matchRes.data || [];
+    const finishedMatches = matches.filter(m => m.status === 'finished' || m.status === 'closed');
+    
+    // Collect unique player IDs from finished matches only
+    const playerIds = new Set();
+    finishedMatches.forEach(m => {
+      (m.players?.team_1 || []).forEach(p => playerIds.add(p.id));
+      (m.players?.team_2 || []).forEach(p => playerIds.add(p.id));
+    });
+
+    // Fetch all photos in parallel
+    const photoMap = {};
+    await Promise.all([...playerIds].map(async id => {
+      photoMap[id] = await getPlayerPhoto(id);
+    }));
+
+    // Inject photo_url into each player
+    matches.forEach(m => {
+      (m.players?.team_1 || []).forEach(p => { p.photo_url = photoMap[p.id] || null; });
+      (m.players?.team_2 || []).forEach(p => { p.photo_url = photoMap[p.id] || null; });
+    });
+
     res.json({
       tournament_name: miami.name,
       tournament_id: miami.id,
-      matches: matchRes.data || [],
+      matches,
       last_page: 1
     });
   } catch (e) {
