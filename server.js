@@ -6,6 +6,17 @@ app.use(cors());
 
 const TOKEN = process.env.PADEL_TOKEN;
 
+async function getPlayerPhoto(id) {
+  try {
+    const p = await fetch(`https://padelapi.org/api/players/${id}`, {
+      headers: { Authorization: `Bearer ${TOKEN}` }
+    }).then(r => r.json());
+    return p.photo_url || null;
+  } catch (e) {
+    return null;
+  }
+}
+
 app.get('/matches', async (req, res) => {
   try {
     const seasons = await fetch('https://padelapi.org/api/seasons', {
@@ -58,19 +69,14 @@ app.get('/photo/:id', async (req, res) => {
       headers: { Authorization: `Bearer ${TOKEN}` }
     }).then(r => r.json());
 
-    console.log('Player fields:', JSON.stringify(player).substring(0, 500));
-
-    const data = player.data || player;
-    const photoUrl = data.photo || data.image || data.avatar || data.picture || data.photo_url;
-
-    if (!photoUrl) {
-      return res.status(404).json({ error: 'No photo field found', fields: Object.keys(data) });
-    }
+    const photoUrl = player.photo_url;
+    if (!photoUrl) return res.status(404).json({ error: 'No photo found' });
 
     const imgRes = await fetch(photoUrl);
     if (!imgRes.ok) return res.status(404).send('Photo fetch failed');
     const buffer = await imgRes.buffer();
-    res.set('Content-Type', imgRes.headers.get('content-type') || 'image/jpeg');
+    res.set('Content-Type', imgRes.headers.get('content-type') || 'image/webp');
+    res.set('Access-Control-Allow-Origin', '*');
     res.set('Cache-Control', 'public, max-age=86400');
     res.send(buffer);
   } catch (e) {
