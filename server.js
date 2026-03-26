@@ -80,8 +80,3 @@ app.get('/photo/:id', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Running on port ${PORT}`));
-```
-
-Make sure when you paste into GitHub that you can see `app.listen` at the very bottom — that's how you know the file is complete. Commit it and Railway will redeploy. Then open:
-```
-https://padel-results-api-production.up.railway.app/player/79
