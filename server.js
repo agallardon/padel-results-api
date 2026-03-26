@@ -12,9 +12,7 @@ app.get('/matches', async (req, res) => {
       headers: { Authorization: `Bearer ${TOKEN}` }
     }).then(r => r.json());
 
-    const season = (seasons.data || []).find(s =>
-      s.name && s.name.includes('Premier') && s.year === 2026
-    );
+    const season = (seasons.data || []).find(s => s.name.includes('Premier') && s.year === 2026);
     if (!season) return res.json({ error: 'Season not found' });
 
     const tours = await fetch(`https://padelapi.org/api/seasons/${season.id}/tournaments?per_page=50`, {
@@ -38,26 +36,55 @@ app.get('/matches', async (req, res) => {
       matches: matchRes.data || [],
       last_page: 1
     });
-
   } catch (e) {
     console.error('Error:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.get('/photo/:slug', async (req, res) => {
+app.get('/player/:id', async (req, res) => {
   try {
-    const slug = req.params.slug;
-    const url = `https://www.padelfip.com/wp-content/uploads/players/${slug}.png`;
-    const imgRes = await fetch(url);
-    if (!imgRes.ok) return res.status(404).send('Photo not found');
-    const buffer = await imgRes.buffer();
-    res.set('Content-Type', 'image/png');
-    res.set('Cache-Control', 'public, max-age=86400');
-    res.send(buffer);
-  } catch(e) {
-    res.status(500).send('Error');
+    const player = await fetch(`https://padelapi.org/api/players/${req.params.id}`, {
+      headers: { Authorization: `Bearer ${TOKEN}` }
+    }).then(r => r.json());
+    res.json(player);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
+
+app.get('/photo/:id', async (req, res) => {
+  try {
+    // Get player data from padelapi which should include a photo URL
+    const player = await fetch(`https://padelapi.org/api/players/${req.params.id}`, {
+      headers: { Authorization: `Bearer ${TOKEN}` }
+    }).then(r => r.json());
+
+    console.log('Player data for', req.params.id, ':', JSON.stringify(player).substring(0, 400));
+
+    // Try common photo field names
+    const photoUrl = player.photo || player.image || player.avatar || 
+                     player.picture || player.data?.photo || player.data?.image ||
+                     player.data?.avatar || player.data?.picture;
+
+    if (!photoUrl) return res.status(404).json({ error: 'No photo found', fields: Object.keys(player.data || player) });
+
+    // Proxy the image
+    const imgRes = await fetch(photoUrl);
+    if (!imgRes.ok) return res.status(404).send('Photo not found');
+    const buffer = await imgRes.buffer();
+    res.set('Content-Type', imgRes.headers.get('content-type') || 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.send(buffer);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Running on port ${PORT}`));
+```
+
+Once deployed, open this in your browser and paste what you see:
+```
+https://padel-results-api-production.up.railway.app/player/79
